@@ -567,6 +567,123 @@ MiscTab:CreateToggle({
     end
 })
 
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local runService = game:GetService("RunService")
+
+local respawnTime = 15
+local selectionActive, destroyEnabled = false, false
+local outline, destroyedParts = nil, {}
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local runService = game:GetService("RunService")
+
+local respawnTime = 10
+local selectionActive, destroyEnabled = false, false
+local outline, destroyedParts = nil, {}
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local runService = game:GetService("RunService")
+
+local respawnTime = 10
+local selectionActive, destroyEnabled = false, false
+local outline, destroyedParts = nil, {}
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local runService = game:GetService("RunService")
+
+local respawnTime = 10
+local selectionActive, destroyEnabled = false, false
+local outline, destroyedParts = nil, {}
+
+MiscTab:CreateToggle({
+    Name = "Noclip - Hotkey: H",
+    CurrentValue = false,
+    Flag = "DestroyParts_Toggle",
+    Callback = function(Value)
+        destroyEnabled = Value
+        showFrame("Noclip " .. (Value and "Enabled" or "Disabled"))
+        task.delay(1.5, hideFrame)
+        -- disable selection mode if toggle is turned off
+        if not Value and selectionActive then
+            selectionActive = false
+            if outline then
+                outline:Destroy()
+                outline = nil
+            end
+        end
+    end
+})
+
+local function updateOutline(part)
+    if outline and outline.Adornee ~= part then
+        outline:Destroy()
+        outline = nil
+    end
+    if part and not outline then
+        outline = Instance.new("SelectionBox")
+        outline.Adornee = part
+        outline.LineThickness = 0.05
+        outline.Color3 = Color3.new(0,1,0)
+        outline.SurfaceTransparency = 0.8
+        outline.Parent = part
+    end
+end
+
+local function destroyPart(part)
+    if outline and outline.Adornee == part then
+        outline:Destroy()
+        outline = nil
+    end
+    local clone = part:Clone()
+    local parent = part.Parent
+    part:Destroy()
+    destroyedParts[clone] = parent
+    task.delay(respawnTime, function()
+        if clone and destroyedParts[clone] then
+            clone.Parent = destroyedParts[clone]
+            destroyedParts[clone] = nil
+            -- remove any lingering SelectionBox
+            for _, child in ipairs(clone:GetChildren()) do
+                if child:IsA("SelectionBox") then
+                    child:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+runService.RenderStepped:Connect(function()
+    if selectionActive and destroyEnabled then
+        local target = mouse.Target
+        updateOutline(target and target:IsA("BasePart") and target or nil)
+    else
+        if outline then
+            outline:Destroy()
+            outline = nil
+        end
+    end
+end)
+
+mouse.Button1Down:Connect(function()
+    if selectionActive and destroyEnabled and mouse.Target and mouse.Target:IsA("BasePart") then
+        destroyPart(mouse.Target)
+    end
+end)
+
+mouse.KeyDown:Connect(function(key)
+    if key:lower() == "h" and destroyEnabled then
+        selectionActive = not selectionActive
+        if not selectionActive and outline then
+            outline:Destroy()
+            outline = nil
+        end
+    end
+end)
+
 --// Visuals Tab
 local VisualsTab = Window:CreateTab("Visuals", 4483362458)
 VisualsTab:CreateToggle({ Name = "ESP", CurrentValue = false, Flag = "ESP_Toggle", Callback = function(Value)
