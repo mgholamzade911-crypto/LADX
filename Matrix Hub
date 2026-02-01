@@ -91,7 +91,8 @@ local ESPNames = false
 local ESPDistance = false
 local ESPTracers = false
 local FOVCircleEnabled = false
-local FOV_RADIUS = 250
+local FOV_RADIUS = 175
+local RapidFireEnabled = false -- New Rapid Fire toggle
 
 --========================
 --// Items for Inmate ESP
@@ -327,29 +328,33 @@ end
 --// Render Loop (with Inmate item ESP)
 --========================
 RS.RenderStepped:Connect(function()
-	fovCircle.Visible = FOVCircleEnabled
-	fovCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
+    fovCircle.Visible = FOVCircleEnabled
+    fovCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
 
-	if not ESPEnabled then
-		for _, esp in pairs(ESPs) do
-			esp.Box.Visible = false
-			esp.NameText.Visible = false
-			esp.DistanceText.Visible = false
-			esp.HealthBar.Visible = false
-			esp.Tracer.Visible = false
-		end
-		return
-	end
+    -- Always update target regardless of ESP
+    local t = getTarget()
+    if t ~= lockedTarget then
+        lockedTarget = t
+        if lockedTarget then
+            showFrame("Target: " .. lockedTarget.Name)
+        else
+            hideFrame()
+        end
+    end
 
-	local t = getTarget()
-	if t ~= lockedTarget then
-		lockedTarget = t
-		if lockedTarget then
-			showFrame("Target: " .. lockedTarget.Name)
-		else
-			hideFrame()
-		end
-	end
+    -- If ESP is disabled, hide ESP drawings but still keep targeting
+    if not ESPEnabled then
+        for _, esp in pairs(ESPs) do
+            esp.Box.Visible = false
+            esp.NameText.Visible = false
+            esp.DistanceText.Visible = false
+            esp.HealthBar.Visible = false
+            esp.Tracer.Visible = false
+        end
+        return
+    end
+
+    -- ESP drawing logic continues here...
 
 	for plr, esp in pairs(ESPs) do
 		if not shouldShowESP(plr) then
@@ -547,6 +552,132 @@ VisualsTab:CreateToggle({ Name = "ESP Tracers", CurrentValue = false, Flag = "ES
 	showFrame("ESP Tracers "..(Value and "Enabled" or "Disabled"))
 	task.delay(1.5, hideFrame)
 end})
+
+local player = game.Players.LocalPlayer
+local RapidFireEnabled = false -- toggle variable
+local config
+local mods = {
+    FireRate = 0,
+    SpreadRadius = 0,
+    AccurateRange = 1000,
+    Range = 3000
+}
+
+-- Function to apply weapon mods
+local function applyMods()
+    local shoots = filtergc("function", {Name = "shoot"})
+    for _, fn in pairs(shoots) do
+        local ups = getupvalues(fn)
+        while not ups[10] do task.wait(0.1); ups = getupvalues(fn) end
+        config = ups[10]
+        break
+    end
+    if config then
+        for k,v in pairs(mods) do
+            if config[k] ~= nil then
+                config[k] = v
+            end
+        end
+    else
+    end
+end
+
+-- Apply mods when a tool is equipped
+local function onToolAdded(tool)
+    if tool:IsA("Tool") and RapidFireEnabled then
+        task.wait(0.5)
+        applyMods()
+    end
+end
+
+-- Connect tool equip for current and future characters
+local function connectCharacter(char)
+    -- When a new tool is added
+    char.ChildAdded:Connect(onToolAdded)
+    -- Apply mods for existing tools
+    for _, tool in pairs(char:GetChildren()) do
+        onToolAdded(tool)
+    end
+end
+
+-- Rapid Fire Toggle in Misc Tab
+MiscTab:CreateToggle({
+    Name = "Rapid Fire",
+    CurrentValue = false,
+    Flag = "RapidFire_Toggle",
+    Callback = function(Value)
+        RapidFireEnabled = Value
+        showFrame("Rapid Fire "..(Value and "Enabled" or "Disabled"))
+        task.delay(1.5, hideFrame)
+        if Value and player.Character then
+            connectCharacter(player.Character)
+        end
+    end
+})
+
+-- Connect for character respawn
+player.CharacterAdded:Connect(function(char)
+    task.wait(1) -- wait a little for tools to load
+    if RapidFireEnabled then
+        connectCharacter(char)
+    end
+end)
+
+-- Auto-clicker settings
+local CPS = 50
+local delayTime = 1 / CPS
+
+-- Spam clicker loop
+task.spawn(function()
+    while true do
+        task.wait()
+        if RapidFireEnabled then
+            local char = player.Character or player.CharacterAdded:Wait()
+            local tool = char:FindFirstChildWhichIsA("Tool")
+            if tool then
+                mouse1press()
+                task.wait(0.001)
+                mouse1release()
+                task.wait(delayTime)
+            else
+                task.wait(0.1)
+            end
+        else
+            task.wait(0.1)
+        end
+    end
+end)
+
+local ToolsTab = Window:CreateTab("Tools", 4483362458)
+ToolsTab:CreateButton({Name="AK47 - detectedable!",Callback=function()
+    local p=game.Players.LocalPlayer
+    local h=(p.Character or p.CharacterAdded:Wait()):WaitForChild("HumanoidRootPart")
+    local o=h.CFrame
+    h.CFrame=CFrame.new(-931.769,94.368,2039.459)
+    task.spawn(function()h.CFrame=h.CFrame*CFrame.new(0,1,0) task.wait(0.05) h.CFrame=h.CFrame-Vector3.new(0,1,0) end)
+    task.delay(0.25,function()if h and h.Parent then h.CFrame=o end end)
+    showFrame("AK47 added to Inventory!") task.delay(1.5,hideFrame)
+end})
+ToolsTab:CreateButton({Name="Remington 870 - detectedable!",Callback=function()
+    local p=game.Players.LocalPlayer
+    local h=(p.Character or p.CharacterAdded:Wait()):WaitForChild("HumanoidRootPart")
+    local o=h.CFrame
+    h.CFrame=CFrame.new(820.359,100.735,2229.438)
+    task.spawn(function()h.CFrame=h.CFrame*CFrame.new(0,1,0) task.wait(0.05) h.CFrame=h.CFrame-Vector3.new(0,1,0) end)
+    task.delay(0.25,function()if h and h.Parent then h.CFrame=o end end)
+    showFrame("Remington 870 added to Inventory!") task.delay(1.5,hideFrame)
+end})
+ToolsTab:CreateButton({Name="MP5 - detectedable!",Callback=function()
+    local p=game.Players.LocalPlayer
+    local h=(p.Character or p.CharacterAdded:Wait()):WaitForChild("HumanoidRootPart")
+    local o=h.CFrame
+    h.CFrame=CFrame.new(813.645,100.795,2229.438)
+    task.spawn(function()h.CFrame=h.CFrame*CFrame.new(0,1,0) task.wait(0.05) h.CFrame=h.CFrame-Vector3.new(0,1,0) end)
+    task.delay(0.25,function()if h and h.Parent then h.CFrame=o end end)
+    showFrame("MP5 added to Inventory!") task.delay(1.5,hideFrame)
+end})
+
+
 
 --// Credits Tab
 local CreditsTab = Window:CreateTab("Credits", 4483362458)
