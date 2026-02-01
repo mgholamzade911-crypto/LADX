@@ -216,6 +216,19 @@ stroke.Thickness = 2
 stroke.Transparency = 0.2
 stroke.Color = Color3.fromRGB(144, 255, 172)
 
+local FOV_COLOR_DEFAULT = Color3.fromRGB(255, 255, 255)
+local FOV_COLOR_TARGET = Color3.fromRGB(0, 255, 0)
+local currentFOVColor = FOV_COLOR_DEFAULT
+
+RS.RenderStepped:Connect(function()
+    fovCircle.Visible = FOVCircleEnabled
+    fovCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
+    if FOVCircleEnabled then
+        currentFOVColor = lockedTarget and FOV_COLOR_TARGET or FOV_COLOR_DEFAULT
+        stroke.Color = currentFOVColor
+    end
+end)
+
 --========================
 --// ESP Helpers
 --========================
@@ -554,7 +567,7 @@ VisualsTab:CreateToggle({ Name = "ESP Tracers", CurrentValue = false, Flag = "ES
 end})
 
 local player = game.Players.LocalPlayer
-local RapidFireEnabled = false -- toggle variable
+local RapidFireEnabled = false 
 local config
 local mods = {
     FireRate = 0,
@@ -563,7 +576,6 @@ local mods = {
     Range = 3000
 }
 
--- Function to apply weapon mods
 local function applyMods()
     local shoots = filtergc("function", {Name = "shoot"})
     for _, fn in pairs(shoots) do
@@ -676,8 +688,6 @@ ToolsTab:CreateButton({Name="MP5 - detectedable!",Callback=function()
     task.delay(0.25,function()if h and h.Parent then h.CFrame=o end end)
     showFrame("MP5 added to Inventory!") task.delay(1.5,hideFrame)
 end})
-
-
 
 --// Credits Tab
 local CreditsTab = Window:CreateTab("Credits", 4483362458)
