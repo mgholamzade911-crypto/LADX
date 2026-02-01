@@ -11,6 +11,68 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local player = Plr.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
+if game.PlaceId ~= 155615604 then
+	local TS = game:GetService("TweenService")
+	local TSrv = game:GetService("TextService")
+	local Core = game:GetService("CoreGui")
+
+	local gui = Instance.new("ScreenGui", Core)
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+
+	local f = Instance.new("Frame", gui)
+	f.AnchorPoint = Vector2.new(0.5, 0)
+	f.Position = UDim2.new(0.5, 0, 0, 240)
+	f.Size = UDim2.new(0, 0, 0, 30)
+	f.BackgroundColor3 = Color3.fromRGB(120, 30, 30)
+	f.BackgroundTransparency = 1
+	f.ClipsDescendants = true
+	Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
+
+	local s = Instance.new("UIStroke", f)
+	s.Thickness = 1.75
+	s.Transparency = 1
+	s.Color = Color3.fromRGB(255, 120, 120)
+
+	local t = Instance.new("TextLabel", f)
+	t.Size = UDim2.new(1, -10, 1, 0)
+	t.Position = UDim2.new(0, 5, 0, 0)
+	t.BackgroundTransparency = 1
+	t.Font = Enum.Font.SourceSansBold
+	t.TextSize = 15
+	t.TextColor3 = Color3.fromRGB(255, 220, 220)
+	t.TextStrokeTransparency = 0.5
+	t.TextTransparency = 1
+	t.Text = "Script not Available in this Experience!"
+
+	local function show()
+		local sz = TSrv:GetTextSize(t.Text, t.TextSize, t.Font, Vector2.new(1000,30))
+		TS:Create(f, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, sz.X + 20, 0, sz.Y + 10),
+			BackgroundTransparency = 0
+		}):Play()
+		TS:Create(t, TweenInfo.new(0.25), {TextTransparency = 0}):Play()
+		TS:Create(s, TweenInfo.new(0.25), {Transparency = 0.3}):Play()
+	end
+
+	local function hide()
+		TS:Create(f, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0, 0, 0, f.AbsoluteSize.Y),
+			BackgroundTransparency = 1
+		}):Play()
+		TS:Create(t, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
+		TS:Create(s, TweenInfo.new(0.25), {Transparency = 1}):Play()
+	end
+
+	show()
+	task.delay(2.5, function()
+		hide()
+		task.delay(0.3, function() gui:Destroy() end)
+	end)
+
+	return
+end
+
 --// Hook ray function (for aimbot)
 local filterray = filtergc("function", { Name = "castRay" })
 
@@ -429,9 +491,9 @@ end)
 --========================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
-	Name = "Game GUI",
-	LoadingTitle = "Loading GUI...",
-	LoadingSubtitle = "by Mikaiel",
+	Name = "Matrix Hub",
+	LoadingTitle = "Loading Assets",
+	LoadingSubtitle = "by MISHKO & tester",
 	ConfigurationSaving = { Enabled = true, FolderName = "MyGameConfigs", FileName = "Config" }
 })
 
