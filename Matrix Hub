@@ -199,13 +199,10 @@ local function hideFrame()
 	showing = false
 end
 
---========================
---// FOV Circle
---========================
 local fovCircle = Instance.new("Frame")
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-fovCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
+fovCircle.AnchorPoint = Vector2.new(0.5,0.5)
+fovCircle.Position = UDim2.new(0.5,0,0.5,0)
+fovCircle.Size = UDim2.new(0,FOV_RADIUS*2,0,FOV_RADIUS*2)
 fovCircle.BackgroundTransparency = 1
 fovCircle.Visible = FOVCircleEnabled
 fovCircle.Parent = mainGui
@@ -213,21 +210,8 @@ Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1,0)
 
 local stroke = Instance.new("UIStroke", fovCircle)
 stroke.Thickness = 2
-stroke.Transparency = 0.2
-stroke.Color = Color3.fromRGB(144, 255, 172)
-
-local FOV_COLOR_DEFAULT = Color3.fromRGB(255, 255, 255)
-local FOV_COLOR_TARGET = Color3.fromRGB(0, 255, 0)
-local currentFOVColor = FOV_COLOR_DEFAULT
-
-RS.RenderStepped:Connect(function()
-    fovCircle.Visible = FOVCircleEnabled
-    fovCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
-    if FOVCircleEnabled then
-        currentFOVColor = lockedTarget and FOV_COLOR_TARGET or FOV_COLOR_DEFAULT
-        stroke.Color = currentFOVColor
-    end
-end)
+stroke.Color = Color3.fromRGB(255,255,255)
+stroke.Transparency = 0
 
 --========================
 --// ESP Helpers
@@ -532,6 +516,56 @@ MiscTab:CreateSlider({ Name = "FOV Size", Range = {50, 500}, Increment = 5, Suff
 	showFrame("FOV Size set to "..Value)
 	task.delay(1.5, hideFrame)
 end})
+
+local TweenService = game:GetService("TweenService")
+
+local BulletTracesEnabled = false
+
+local function cloneRayPart(rayPart)
+    if not BulletTracesEnabled then return end
+    if not rayPart:IsA("Part") then return end
+    local clone = rayPart:Clone()
+    clone.Parent = workspace
+    clone.Anchored = rayPart.Anchored
+    clone.CanCollide = false
+    clone.CanQuery = false
+    clone.CanTouch = false
+    clone.Color = Color3.fromRGB(200,128,255)
+    clone.Transparency = 0.45
+    local tween = TweenService:Create(clone, TweenInfo.new(0.45, Enum.EasingStyle.Linear), {Transparency = 1})
+    tween:Play()
+    tween.Completed:Connect(function() clone:Destroy() end)
+end
+
+local function monitorContainer(container)
+    container.DescendantAdded:Connect(function(d)
+        if d:IsA("Part") and d.Name == "RayPart" then
+            cloneRayPart(d)
+        end
+    end)
+    for _, v in ipairs(container:GetChildren()) do
+        if v:IsA("Folder") or v:IsA("Model") then
+            monitorContainer(v)
+        end
+    end
+end
+
+monitorContainer(workspace)
+if game:FindFirstChild("Camera") then
+    monitorContainer(game.Camera)
+end
+
+-- GUI Toggle
+MiscTab:CreateToggle({
+    Name = "Bullet Traces",
+    CurrentValue = false,
+    Flag = "BulletTraces_Toggle",
+    Callback = function(Value)
+        BulletTracesEnabled = Value
+        showFrame("Bullet Traces " .. (Value and "Enabled" or "Disabled"))
+        task.delay(1.5, hideFrame)
+    end
+})
 
 --// Visuals Tab
 local VisualsTab = Window:CreateTab("Visuals", 4483362458)
