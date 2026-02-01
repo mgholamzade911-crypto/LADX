@@ -1,28 +1,31 @@
+--// Services
 local TS = game:GetService("TweenService")
 local TSrv = game:GetService("TextService")
 local Plr = game:GetService("Players")
 local Core = game:GetService("CoreGui")
-local RS = game:GetService("ReplicatedStorage")
-local RF = game:GetService("ReplicatedFirst")
-
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local player = Plr.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Hook ray function
+--// Globals for GUI control
+getgenv().AimLockEnabled = false
+getgenv().FOVEnabled = true
+getgenv().FOV_RADIUS = 250
+getgenv().ESPEnabled = true
+
+--// Hook ray function
 local filterray = filtergc("function", { Name = "castRay" })
 
--- Aimbot settings
-local FOV_RADIUS = 250
+--// Settings
 local DOT_THRESHOLD = 0.15
 local AIM_PART = "Head"
 
 local RayParams = RaycastParams.new()
 RayParams.FilterType = Enum.RaycastFilterType.Blacklist
 
--- Determine if ESP should show for a player
+--// Utility functions
 local function shouldShowESP(targetPlr)
 	if not targetPlr or not targetPlr.Team or not player.Team then return false end
 	if targetPlr == player then return false end
@@ -30,62 +33,54 @@ local function shouldShowESP(targetPlr)
 	return true
 end
 
--- Get color based on team
 local function getTeamColor(plr)
 	if not plr.Team then return Color3.fromRGB(255, 255, 255) end
-
-	local teamName = plr.Team.Name
-	if teamName == "Guards" then
-		return Color3.fromRGB(0, 170, 255)
-	elseif teamName == "Criminals" then
-		return Color3.fromRGB(255, 60, 60)
-	elseif teamName == "Inmates" then
-		return Color3.fromRGB(255, 170, 0)
-	else
-		return Color3.fromRGB(255, 255, 255)
-	end
+	local tName = plr.Team.Name
+	if tName == "Guards" then return Color3.fromRGB(0, 170, 255)
+	elseif tName == "Criminals" then return Color3.fromRGB(255, 60, 60)
+	elseif tName == "Inmates" then return Color3.fromRGB(255, 170, 0)
+	else return Color3.fromRGB(255, 255, 255) end
 end
 
--- Generate random string for GUI name
+--// Random GUI Name
 local function rnd(n)
-	n = math.min(n, 15)
 	local c, t, s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*_-+=.<>?/|~", {}, ''
-	for v in c:gmatch"." do t[#t+1] = v end
-	for i = 1, n do s ..= t[math.random(#t)] end
+	for v in c:gmatch"." do t[#t+1]=v end
+	for i=1,n do s ..= t[math.random(#t)] end
 	return s
 end
 
--- Main GUI
+--// Main GUI
 local mainGui = Instance.new("ScreenGui")
 mainGui.Name = rnd(12)
 mainGui.IgnoreGuiInset = true
 mainGui.ResetOnSpawn = false
 mainGui.Parent = Core
 
--- Notification frame
+--// Notification frame
 local STARTY = 240
 local notifyFrame = Instance.new("Frame")
-notifyFrame.AnchorPoint = Vector2.new(0.5, 0)
-notifyFrame.Position = UDim2.new(0.5, 0, 0, STARTY)
-notifyFrame.Size = UDim2.new(0, 0, 0, 30)
-notifyFrame.BackgroundColor3 = Color3.fromRGB(120, 30, 30)
+notifyFrame.AnchorPoint = Vector2.new(0.5,0)
+notifyFrame.Position = UDim2.new(0.5,0,0,STARTY)
+notifyFrame.Size = UDim2.new(0,0,0,30)
+notifyFrame.BackgroundColor3 = Color3.fromRGB(120,30,30)
 notifyFrame.BackgroundTransparency = 1
-notifyFrame.Parent = mainGui
 notifyFrame.ClipsDescendants = true
-Instance.new("UICorner", notifyFrame).CornerRadius = UDim.new(0, 4)
+notifyFrame.Parent = mainGui
+Instance.new("UICorner", notifyFrame).CornerRadius = UDim.new(0,4)
 
 local notifyStroke = Instance.new("UIStroke", notifyFrame)
 notifyStroke.Thickness = 1.75
 notifyStroke.Transparency = 1
-notifyStroke.Color = Color3.fromRGB(255, 120, 120)
+notifyStroke.Color = Color3.fromRGB(255,120,120)
 
 local notifyLabel = Instance.new("TextLabel")
-notifyLabel.Size = UDim2.new(1, -10, 1, 0)
-notifyLabel.Position = UDim2.new(0, 5, 0, 0)
+notifyLabel.Size = UDim2.new(1,-10,1,0)
+notifyLabel.Position = UDim2.new(0,5,0,0)
 notifyLabel.BackgroundTransparency = 1
 notifyLabel.Font = Enum.Font.SourceSansBold
 notifyLabel.TextSize = 15
-notifyLabel.TextColor3 = Color3.fromRGB(255, 220, 220)
+notifyLabel.TextColor3 = Color3.fromRGB(255,220,220)
 notifyLabel.TextStrokeTransparency = 0.5
 notifyLabel.TextTransparency = 1
 notifyLabel.Text = ""
@@ -94,241 +89,178 @@ notifyLabel.Parent = notifyFrame
 local showing = false
 local function showFrame(text)
 	notifyLabel.Text = text
-	local sz = TSrv:GetTextSize(text, 15, notifyLabel.Font, Vector2.new(1000, 30))
-
-	TS:Create(notifyFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, sz.X + 20, 0, sz.Y + 10),
-		BackgroundTransparency = 0
-	}):Play()
-	TS:Create(notifyLabel, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
-	TS:Create(notifyStroke, TweenInfo.new(0.25), { Transparency = 0.3 }):Play()
+	local sz = TSrv:GetTextSize(text,15,notifyLabel.Font,Vector2.new(1000,30))
+	TS:Create(notifyFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=UDim2.new(0, sz.X+20, 0, sz.Y+10), BackgroundTransparency=0}):Play()
+	TS:Create(notifyLabel, TweenInfo.new(0.25), {TextTransparency=0}):Play()
+	TS:Create(notifyStroke, TweenInfo.new(0.25), {Transparency=0.3}):Play()
 	showing = true
 end
-
 local function hideFrame()
 	if not showing then return end
-	TS:Create(notifyFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Size = UDim2.new(0, 0, 0, notifyFrame.AbsoluteSize.Y),
-		BackgroundTransparency = 1
-	}):Play()
-	TS:Create(notifyLabel, TweenInfo.new(0.25), { TextTransparency = 1 }):Play()
-	TS:Create(notifyStroke, TweenInfo.new(0.25), { Transparency = 1 }):Play()
+	TS:Create(notifyFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size=UDim2.new(0,0,0,notifyFrame.AbsoluteSize.Y), BackgroundTransparency=1}):Play()
+	TS:Create(notifyLabel, TweenInfo.new(0.25), {TextTransparency=1}):Play()
+	TS:Create(notifyStroke, TweenInfo.new(0.25), {Transparency=1}):Play()
 	showing = false
 end
 
--- FOV circle
+--// FOV Circle
 local fovCircle = Instance.new("Frame")
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-fovCircle.Size = UDim2.new(0, FOV_RADIUS * 2, 0, FOV_RADIUS * 2)
+fovCircle.AnchorPoint = Vector2.new(0.5,0.5)
+fovCircle.Position = UDim2.new(0.5,0,0.5,0)
+fovCircle.Size = UDim2.new(0, getgenv().FOV_RADIUS*2,0,getgenv().FOV_RADIUS*2)
 fovCircle.BackgroundTransparency = 1
 fovCircle.Parent = mainGui
-Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
-
+Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1,0)
 local stroke = Instance.new("UIStroke", fovCircle)
 stroke.Thickness = 2
 stroke.Transparency = 0.2
-stroke.Color = Color3.fromRGB(144, 255, 172)
+stroke.Color = Color3.fromRGB(144,255,172)
 
--- Find closest target within FOV
+--// Find target
 local function getTarget()
-	local bestTarget
-	local bestDist = math.huge
-	local screenCenter = Camera.ViewportSize / 2
-
+	local bestTarget, bestDist = nil, math.huge
+	local screenCenter = Camera.ViewportSize/2
 	for _, plr in ipairs(Plr:GetPlayers()) do
 		if not shouldShowESP(plr) then continue end
 		local char = plr.Character
-		local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local part = char and char:FindFirstChild(AIM_PART)
-
-		if humanoid and humanoid.Health > 0 and part then
-			local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+		if hum and hum.Health>0 and part then
+			local screenPos,onScreen = Camera:WorldToViewportPoint(part.Position)
 			if not onScreen then continue end
-
-			local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-			if dist > FOV_RADIUS then continue end
-
+			local dist = (Vector2.new(screenPos.X,screenPos.Y)-screenCenter).Magnitude
+			if dist>getgenv().FOV_RADIUS then continue end
 			local camDir = Camera.CFrame.LookVector
-			local toTarget = (part.Position - Camera.CFrame.Position).Unit
-			if camDir:Dot(toTarget) < DOT_THRESHOLD then continue end
-
-			RayParams.FilterDescendantsInstances = { player.Character, char }
-			local ray = Workspace:Raycast(Camera.CFrame.Position, part.Position - Camera.CFrame.Position, RayParams)
+			local toTarget = (part.Position-Camera.CFrame.Position).Unit
+			if camDir:Dot(toTarget)<DOT_THRESHOLD then continue end
+			RayParams.FilterDescendantsInstances={player.Character,char}
+			local ray = Workspace:Raycast(Camera.CFrame.Position,part.Position-Camera.CFrame.Position,RayParams)
 			if ray and not ray.Instance:IsDescendantOf(char) then continue end
-
-			if dist < bestDist then
-				bestDist = dist
-				bestTarget = plr
+			if dist<bestDist then
+				bestDist=dist
+				bestTarget=plr
 			end
 		end
 	end
-
 	return bestTarget
 end
 
--- Loading sequence
-local loading = true
-task.spawn(function()
-	local dots = 0
-	while loading do
-		dots = (dots % 3) + 1
-		showFrame("Loading" .. string.rep(".", dots))
-		task.wait(0.3)
-	end
-end)
-task.wait(math.random(15, 30)/10)
-loading = false
-hideFrame()
-
--- ESP system
+--// ESP System
 local ESPs = {}
 local lockedTarget = nil
-
 local function createESP(plr)
-	if plr == player or ESPs[plr] then return end
-
+	if plr==player or ESPs[plr] then return end
 	local box = Drawing.new("Square")
-	box.Visible = false
-	box.Thickness = 2
-	box.Filled = false
-	box.Transparency = 1
-
-	local healthBar = Drawing.new("Square")
-	healthBar.Visible = false
-	healthBar.Filled = true
-	healthBar.Thickness = 1
-	healthBar.Transparency = 1
-
-	local nameText = Drawing.new("Text")
-	nameText.Center = true
-	nameText.Outline = true
-	nameText.Size = 18
-	nameText.Color = Color3.fromRGB(255,255,255)
-	nameText.Font = 2
-	nameText.Visible = false
-
-	local distanceText = Drawing.new("Text")
-	distanceText.Center = true
-	distanceText.Outline = true
-	distanceText.Size = 16
-	distanceText.Color = Color3.fromRGB(255,255,0)
-	distanceText.Font = 2
-	distanceText.Visible = false
-
-	ESPs[plr] = {Box=box, HealthBar=healthBar, NameText=nameText, DistanceText=distanceText}
+	box.Visible=false box.Thickness=2 box.Filled=false box.Transparency=1
+	local healthBar=Drawing.new("Square")
+	healthBar.Visible=false healthBar.Filled=true healthBar.Thickness=1 healthBar.Transparency=1
+	local nameText=Drawing.new("Text")
+	nameText.Center=true nameText.Outline=true nameText.Size=18 nameText.Color=Color3.fromRGB(255,255,255) nameText.Font=2 nameText.Visible=false
+	local distanceText=Drawing.new("Text")
+	distanceText.Center=true distanceText.Outline=true distanceText.Size=16 distanceText.Color=Color3.fromRGB(255,255,0) distanceText.Font=2 distanceText.Visible=false
+	ESPs[plr]={Box=box,HealthBar=healthBar,NameText=nameText,DistanceText=distanceText}
 end
-
 local function removeESP(plr)
-	local esp = ESPs[plr]
+	local esp=ESPs[plr]
 	if esp then
 		esp.Box:Remove()
 		esp.HealthBar:Remove()
 		esp.NameText:Remove()
 		esp.DistanceText:Remove()
-		ESPs[plr] = nil
+		ESPs[plr]=nil
 	end
 end
-
-for _, plr in ipairs(Plr:GetPlayers()) do createESP(plr) end
+for _,plr in ipairs(Plr:GetPlayers()) do createESP(plr) end
 Plr.PlayerAdded:Connect(createESP)
 Plr.PlayerRemoving:Connect(removeESP)
 
--- Update ESP every frame
+--// Update ESP + FOV + Notifications
 RunService.RenderStepped:Connect(function()
-	local t = getTarget()
-	if t ~= lockedTarget then
-		lockedTarget = t
-		if lockedTarget then
-			showFrame("Target: " .. lockedTarget.Name)
-		else
-			hideFrame()
-		end
+	-- Update FOV circle size & visibility
+	fovCircle.Size=UDim2.new(0,getgenv().FOV_RADIUS*2,0,getgenv().FOV_RADIUS*2)
+	fovCircle.Visible=getgenv().FOVEnabled
+
+	-- Update locked target
+	local t=getTarget()
+	if t~=lockedTarget then
+		lockedTarget=t
+		if lockedTarget then showFrame("Target: "..lockedTarget.Name) else hideFrame() end
 	end
 
-	for plr, esp in pairs(ESPs) do
-		if not shouldShowESP(plr) then
-			esp.Box.Visible = false
-			esp.NameText.Visible = false
-			esp.DistanceText.Visible = false
-			esp.HealthBar.Visible = false
+	for plr,esp in pairs(ESPs) do
+		if not getgenv().ESPEnabled or not shouldShowESP(plr) then
+			esp.Box.Visible=false
+			esp.NameText.Visible=false
+			esp.DistanceText.Visible=false
+			esp.HealthBar.Visible=false
 			continue
 		end
-
-		local char = plr.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-		if hrp and hum and hum.Health > 0 then
-			local cf, size = char:GetBoundingBox()
-			local corners = {
-				(cf * CFrame.new( size.X/2,  size.Y/2,  size.Z/2)).Position,
-				(cf * CFrame.new(-size.X/2,  size.Y/2,  size.Z/2)).Position,
-				(cf * CFrame.new( size.X/2, -size.Y/2,  size.Z/2)).Position,
-				(cf * CFrame.new(-size.X/2, -size.Y/2,  size.Z/2)).Position,
-				(cf * CFrame.new( size.X/2,  size.Y/2, -size.Z/2)).Position,
-				(cf * CFrame.new(-size.X/2,  size.Y/2, -size.Z/2)).Position,
-				(cf * CFrame.new( size.X/2, -size.Y/2, -size.Z/2)).Position,
-				(cf * CFrame.new(-size.X/2, -size.Y/2, -size.Z/2)).Position,
+		local char=plr.Character
+		local hrp=char and char:FindFirstChild("HumanoidRootPart")
+		local hum=char and char:FindFirstChildOfClass("Humanoid")
+		if hrp and hum and hum.Health>0 then
+			local cf,size=char:GetBoundingBox()
+			local corners={
+				(cf*CFrame.new(size.X/2,size.Y/2,size.Z/2)).Position,
+				(cf*CFrame.new(-size.X/2,size.Y/2,size.Z/2)).Position,
+				(cf*CFrame.new(size.X/2,-size.Y/2,size.Z/2)).Position,
+				(cf*CFrame.new(-size.X/2,-size.Y/2,size.Z/2)).Position,
+				(cf*CFrame.new(size.X/2,size.Y/2,-size.Z/2)).Position,
+				(cf*CFrame.new(-size.X/2,size.Y/2,-size.Z/2)).Position,
+				(cf*CFrame.new(size.X/2,-size.Y/2,-size.Z/2)).Position,
+				(cf*CFrame.new(-size.X/2,-size.Y/2,-size.Z/2)).Position
 			}
-
-			local minX, minY = math.huge, math.huge
-			local maxX, maxY = -math.huge, -math.huge
-			local onScreen = false
-
-			for _, pos in ipairs(corners) do
-				local screenPos, visible = Camera:WorldToViewportPoint(pos)
+			local minX,minY,maxX,maxY=math.huge,math.huge,-math.huge,-math.huge
+			local onScreen=false
+			for _,pos in ipairs(corners) do
+				local screenPos,visible=Camera:WorldToViewportPoint(pos)
 				if visible then
-					onScreen = true
-					minX = math.min(minX, screenPos.X)
-					minY = math.min(minY, screenPos.Y)
-					maxX = math.max(maxX, screenPos.X)
-					maxY = math.max(maxY, screenPos.Y)
+					onScreen=true
+					minX=math.min(minX,screenPos.X)
+					minY=math.min(minY,screenPos.Y)
+					maxX=math.max(maxX,screenPos.X)
+					maxY=math.max(maxY,screenPos.Y)
 				end
 			end
-
 			if onScreen then
-				esp.Box.Position = Vector2.new(minX, minY)
-				esp.Box.Size = Vector2.new(maxX-minX, maxY-minY)
-				esp.Box.Color = (plr == lockedTarget) and Color3.fromRGB(0, 255, 0) or getTeamColor(plr)
-				esp.Box.Visible = true
-
-				local dist = (hrp.Position - Camera.CFrame.Position).Magnitude
-				esp.NameText.Text = plr.Name
-				esp.NameText.Position = Vector2.new((minX+maxX)/2, minY-20)
-				esp.NameText.Visible = true
-
-				esp.DistanceText.Text = string.format("[%.0f]", dist)
-				esp.DistanceText.Position = Vector2.new((minX+maxX)/2, minY-36)
-				esp.DistanceText.Visible = true
-
-				local hpPercent = math.clamp(hum.Health / hum.MaxHealth,0,1)
-				esp.HealthBar.Size = Vector2.new(4,(maxY-minY)*hpPercent)
-				esp.HealthBar.Position = Vector2.new(minX-6, maxY-esp.HealthBar.Size.Y)
-				esp.HealthBar.Color = Color3.fromRGB(255*(1-hpPercent),255*hpPercent,0)
-				esp.HealthBar.Visible = true
+				esp.Box.Position=Vector2.new(minX,minY)
+				esp.Box.Size=Vector2.new(maxX-minX,maxY-minY)
+				esp.Box.Color=(plr==lockedTarget) and Color3.fromRGB(0,255,0) or getTeamColor(plr)
+				esp.Box.Visible=true
+				local dist=(hrp.Position-Camera.CFrame.Position).Magnitude
+				esp.NameText.Text=plr.Name
+				esp.NameText.Position=Vector2.new((minX+maxX)/2,minY-20)
+				esp.NameText.Visible=true
+				esp.DistanceText.Text=string.format("[%.0f]",dist)
+				esp.DistanceText.Position=Vector2.new((minX+maxX)/2,minY-36)
+				esp.DistanceText.Visible=true
+				local hpPercent=math.clamp(hum.Health/hum.MaxHealth,0,1)
+				esp.HealthBar.Size=Vector2.new(4,(maxY-minY)*hpPercent)
+				esp.HealthBar.Position=Vector2.new(minX-6,maxY-esp.HealthBar.Size.Y)
+				esp.HealthBar.Color=Color3.fromRGB(255*(1-hpPercent),255*hpPercent,0)
+				esp.HealthBar.Visible=true
 			else
-				esp.Box.Visible = false
-				esp.NameText.Visible = false
-				esp.DistanceText.Visible = false
-				esp.HealthBar.Visible = false
+				esp.Box.Visible=false
+				esp.NameText.Visible=false
+				esp.DistanceText.Visible=false
+				esp.HealthBar.Visible=false
 			end
 		else
-			esp.Box.Visible = false
-			esp.NameText.Visible = false
-			esp.DistanceText.Visible = false
-			esp.HealthBar.Visible = false
+			esp.Box.Visible=false
+			esp.NameText.Visible=false
+			esp.DistanceText.Visible=false
+			esp.HealthBar.Visible=false
 		end
 	end
 end)
 
--- Hook raycast to aim at locked target
-for i, v in filterray do
+--// Hook raycast for aimbot
+for i,v in filterray do
 	local old
-	old = hookfunction(v, function(origin, targetPos, spread)
-		if lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild("Head") then
-			targetPos = lockedTarget.Character.Head.Position
+	old=hookfunction(v,function(origin,targetPos,spread)
+		if getgenv().AimLockEnabled and lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild("Head") then
+			targetPos=lockedTarget.Character.Head.Position
 		end
-		return old(origin, targetPos, spread)
+		return old(origin,targetPos,spread)
 	end)
 end
