@@ -280,6 +280,32 @@ local function removeESP(plr)
 	end
 end
 
+local lockTracer = Drawing.new("Line")
+lockTracer.Visible = false
+lockTracer.Thickness = 2.8
+lockTracer.Transparency = 1
+lockTracer.Color = Color3.fromRGB(144, 255, 144)
+
+RS.RenderStepped:Connect(function()
+    if lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild(AIM_PART) then
+        local part = lockedTarget.Character[AIM_PART]
+        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+
+        if onScreen then
+            local fromPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            local toPos = Vector2.new(screenPos.X, screenPos.Y)
+
+            lockTracer.Visible = true
+            lockTracer.From = fromPos
+            lockTracer.To = toPos
+        else
+            lockTracer.Visible = false
+        end
+    else
+        lockTracer.Visible = false
+    end
+end)
+
 for _, plr in ipairs(Plr:GetPlayers()) do createESP(plr) end
 Plr.PlayerAdded:Connect(createESP)
 Plr.PlayerRemoving:Connect(removeESP)
@@ -763,6 +789,8 @@ local function connectCharacter(char)
     end
 end
 
+local AutoShootEnabled = false
+
 -- Rapid Fire Toggle in Misc Tab
 MiscTab:CreateToggle({
     Name = "Rapid Fire",
@@ -778,9 +806,21 @@ MiscTab:CreateToggle({
     end
 })
 
+-- Auto Shoot Toggle
+MiscTab:CreateToggle({
+    Name = "Auto Shoot",
+    CurrentValue = false,
+    Flag = "AutoShoot_Toggle",
+    Callback = function(Value)
+        AutoShootEnabled = Value
+        showFrame("Auto Shoot "..(Value and "Enabled" or "Disabled"))
+        task.delay(1.5, hideFrame)
+    end
+})
+
 -- Connect for character respawn
 player.CharacterAdded:Connect(function(char)
-    task.wait(1) -- wait a little for tools to load
+    task.wait(1)
     if RapidFireEnabled then
         connectCharacter(char)
     end
@@ -790,11 +830,11 @@ end)
 local CPS = 50
 local delayTime = 1 / CPS
 
--- Spam clicker loop
+-- Spam clicker loop (ONLY when locked on target AND AutoShoot is ON)
 task.spawn(function()
     while true do
         task.wait()
-        if RapidFireEnabled then
+        if RapidFireEnabled and AutoShootEnabled and lockedTarget then
             local char = player.Character or player.CharacterAdded:Wait()
             local tool = char:FindFirstChildWhichIsA("Tool")
             if tool then
