@@ -1,0 +1,250 @@
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+--// Rayfield UI
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+	Name = "Universal Matrix - ESP",
+	LoadingTitle = "Loading Assets",
+	LoadingSubtitle = "by MISHKO & tester",
+	ConfigurationSaving = { Enabled = true, FolderName = "MyGameConfigs", FileName = "Config" }
+})
+
+local ESPEnabled = true
+local ESPSettings = {
+	Boxes = true,
+	Health = true,
+	Names = true,
+	Distance = true,
+	Tracers = true
+}
+
+--// Notification system
+local function notify(msg)
+	game:GetService("StarterGui"):SetCore("SendNotification", {
+		Title = "Matrix ESP",
+		Text = msg,
+		Duration = 2
+	})
+end
+
+--// ESP storage
+local ESPs = {}
+
+-- Smooth health color
+local function getHealthColor(hp, maxHp)
+	local pct = math.clamp(hp / maxHp, 0, 1)
+	if pct <= 0.5 then
+		return Color3.fromRGB(255, math.floor(255 * (pct / 0.5)), 0)
+	else
+		local greenPct = (pct - 0.5) / 0.5
+		return Color3.fromRGB(math.floor(255 * (1 - greenPct)), 255, 0)
+	end
+end
+
+-- Create ESP for a player
+local function createESP(plr)
+	if plr == LocalPlayer or ESPs[plr] then return end
+
+	-- Box outline
+	local boxOutline = Drawing.new("Square")
+	boxOutline.Visible = true
+	boxOutline.Thickness = 3
+	boxOutline.Filled = false
+	boxOutline.Transparency = 1
+	boxOutline.Color = Color3.fromRGB(25, 25, 25) -- dark outline
+
+	-- Main box
+	local box = Drawing.new("Square")
+	box.Visible = true
+	box.Thickness = 2
+	box.Filled = false
+	box.Transparency = 1
+	box.Color = Color3.fromRGB(255, 0, 0) -- main color
+
+	-- Health bar outline
+	local healthOutline = Drawing.new("Square")
+	healthOutline.Visible = true
+	healthOutline.Filled = false
+	healthOutline.Thickness = 1.5
+	healthOutline.Color = Color3.fromRGB(25,25,25)
+
+	-- Health bar
+	local healthBar = Drawing.new("Square")
+	healthBar.Visible = true
+	healthBar.Filled = true
+	healthBar.Thickness = 1
+	healthBar.Transparency = 1
+	healthBar.Color = Color3.fromRGB(255, 0, 0)
+
+	-- Name and distance
+	local nameText = Drawing.new("Text")
+	nameText.Center = true
+	nameText.Outline = true
+	nameText.Size = 18
+	nameText.Color = Color3.fromRGB(255, 255, 255)
+	nameText.Visible = true
+
+	local distanceText = Drawing.new("Text")
+	distanceText.Center = true
+	distanceText.Outline = true
+	distanceText.Size = 16
+	distanceText.Color = Color3.fromRGB(255, 255, 255)
+	distanceText.Visible = true
+
+	-- Tracer
+	local tracerLine = Drawing.new("Line")
+	tracerLine.Visible = true
+	tracerLine.Color = Color3.fromRGB(255, 0, 0)
+	tracerLine.Thickness = 1.5
+
+	ESPs[plr] = {
+		Box = box,
+		Outline = boxOutline,
+		HealthBar = healthBar,
+		HealthOutline = healthOutline,
+		NameText = nameText,
+		DistanceText = distanceText,
+		Tracer = tracerLine
+	}
+end
+
+local function removeESP(plr)
+	local esp = ESPs[plr]
+	if esp then
+		esp.Box:Remove()
+		esp.Outline:Remove()
+		esp.HealthBar:Remove()
+		esp.HealthOutline:Remove()
+		esp.NameText:Remove()
+		esp.DistanceText:Remove()
+		esp.Tracer:Remove()
+		ESPs[plr] = nil
+	end
+end
+
+-- Add existing players
+for _, plr in ipairs(Players:GetPlayers()) do createESP(plr) end
+Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(removeESP)
+
+-- Render loop
+RunService.RenderStepped:Connect(function()
+	for plr, esp in pairs(ESPs) do
+		local char = plr.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not char or not hum or hum.Health <= 0 then
+			esp.Box.Visible = false
+			esp.Outline.Visible = false
+			esp.HealthBar.Visible = false
+			esp.HealthOutline.Visible = false
+			esp.NameText.Visible = false
+			esp.DistanceText.Visible = false
+			esp.Tracer.Visible = false
+			continue
+		end
+
+		local cf, size = char:GetBoundingBox()
+		local corners = {
+			(cf * CFrame.new( size.X/2,  size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2,  size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new( size.X/2, -size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2, -size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new( size.X/2,  size.Y/2, -size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2,  size.Y/2, -size.Z/2)).Position,
+			(cf * CFrame.new( size.X/2, -size.Y/2, -size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2, -size.Y/2, -size.Z/2)).Position,
+		}
+
+		local minX, minY = math.huge, math.huge
+		local maxX, maxY = -math.huge, -math.huge
+		local onScreen = false
+
+		for _, pos in ipairs(corners) do
+			local screenPos, visible = Camera:WorldToViewportPoint(pos)
+			if visible then
+				onScreen = true
+				minX = math.min(minX, screenPos.X)
+				minY = math.min(minY, screenPos.Y)
+				maxX = math.max(maxX, screenPos.X)
+				maxY = math.max(maxY, screenPos.Y)
+			end
+		end
+
+		if onScreen then
+			-- Outline first
+			esp.Outline.Position = Vector2.new(minX-1.5, minY-1.5)
+			esp.Outline.Size = Vector2.new(maxX-minX+3, maxY-minY+3)
+			esp.Outline.Visible = ESPEnabled and ESPSettings.Boxes
+
+			-- Box
+			esp.Box.Position = Vector2.new(minX, minY)
+			esp.Box.Size = Vector2.new(maxX-minX, maxY-minY)
+			esp.Box.Visible = ESPEnabled and ESPSettings.Boxes
+
+			-- Health outline
+			esp.HealthOutline.Position = Vector2.new(minX-7, minY)
+			esp.HealthOutline.Size = Vector2.new(6, maxY-minY)
+			esp.HealthOutline.Visible = ESPEnabled and ESPSettings.Health
+
+			-- Health bar
+			local hpPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+			esp.HealthBar.Size = Vector2.new(4, (maxY-minY)*hpPercent)
+			esp.HealthBar.Position = Vector2.new(minX-6, maxY-esp.HealthBar.Size.Y)
+			esp.HealthBar.Color = getHealthColor(hum.Health, hum.MaxHealth)
+			esp.HealthBar.Visible = ESPEnabled and ESPSettings.Health
+
+			-- Name
+			esp.NameText.Text = plr.Name
+			esp.NameText.Position = Vector2.new((minX+maxX)/2, minY-20)
+			esp.NameText.Visible = ESPEnabled and ESPSettings.Names
+
+			-- Distance
+			local dist = (cf.Position - Camera.CFrame.Position).Magnitude
+			esp.DistanceText.Text = string.format("[%.0f]", dist)
+			esp.DistanceText.Position = Vector2.new((minX+maxX)/2, minY-36)
+			esp.DistanceText.Visible = ESPEnabled and ESPSettings.Distance
+
+			-- Tracer
+			esp.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+			esp.Tracer.To = Vector2.new((minX+maxX)/2, maxY)
+			esp.Tracer.Visible = ESPEnabled and ESPSettings.Tracers
+		else
+			esp.Box.Visible = false
+			esp.Outline.Visible = false
+			esp.HealthBar.Visible = false
+			esp.HealthOutline.Visible = false
+			esp.NameText.Visible = false
+			esp.DistanceText.Visible = false
+			esp.Tracer.Visible = false
+		end
+	end
+end)
+
+--// GUI toggles using Rayfield
+local MiscTab = Window:CreateTab("ESP Settings", 4483362458)
+
+local function createToggle(name, key)
+	MiscTab:CreateToggle({
+		Name = name,
+		CurrentValue = ESPSettings[key],
+		Flag = "ESP_"..key,
+		Callback = function(val)
+			ESPSettings[key] = val
+			notify(name.." "..(val and "Enabled" or "Disabled"))
+		end
+	})
+end
+
+createToggle("Boxes", "Boxes")
+createToggle("Health", "Health")
+createToggle("Names", "Names")
+createToggle("Distance", "Distance")
+createToggle("Tracers", "Tracers")
+
+notify("Universal Matrix - ESP Loaded")
