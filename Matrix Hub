@@ -543,6 +543,123 @@ MiscTab:CreateSlider({ Name = "FOV Size", Range = {50, 500}, Increment = 5, Suff
 	task.delay(1.5, hideFrame)
 end})
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- noclip function
+local player = Players.LocalPlayer
+local RANGE = 2.5
+local FloatValue = -3.1
+local noclipEnabled = false -- initial value, will be changed by toggle
+
+local bubble = Instance.new("Part")
+bubble.Name = "NoclipBubble"
+bubble.Shape = Enum.PartType.Ball
+bubble.Transparency = 1
+bubble.Color = Color3.fromRGB(0,170,255)
+bubble.Material = Enum.Material.ForceField
+bubble.Anchored = true
+bubble.CanCollide = false
+bubble.CanQuery = false
+bubble.CanTouch = false
+bubble.Parent = workspace
+
+local floatPad = Instance.new("Part")
+floatPad.Name = "FloatPlatform"
+floatPad.Size = Vector3.new(2,0.2,1.5)
+floatPad.Transparency = 1
+floatPad.Anchored = true
+floatPad.CanCollide = true
+floatPad.Parent = workspace
+
+-- Variables
+local character
+local hrp
+local modified = {}
+local overlapParams = OverlapParams.new()
+
+-- Function to setup character
+local function setupCharacter(char)
+	character = char
+	hrp = char:WaitForChild("HumanoidRootPart")
+	overlapParams.FilterType = Enum.RaycastFilterType.Blacklist
+	overlapParams.FilterDescendantsInstances = { character }
+	modified = {}
+end
+
+-- Connect respawn
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+end)
+
+-- If character already exists
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+-- Key input for floating
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.Q then
+		FloatValue -= 0.5
+	elseif input.KeyCode == Enum.KeyCode.E then
+		FloatValue += 0.5
+	end
+end)
+
+-- Main noclip loop
+RunService.RenderStepped:Connect(function()
+	if not noclipEnabled then return end
+	if not hrp or not hrp.Parent then return end
+
+	-- Update parts
+	bubble.Size = Vector3.new(RANGE*2, RANGE*2, RANGE*2)
+	bubble.CFrame = hrp.CFrame
+	floatPad.CFrame = hrp.CFrame * CFrame.new(0, FloatValue, 0)
+
+	-- Reset seen flags
+	for part, data in pairs(modified) do
+		data.seen = false
+	end
+
+	-- Get parts in range
+	local partsInRange = workspace:GetPartBoundsInRadius(hrp.Position, RANGE, overlapParams)
+	for _, part in ipairs(partsInRange) do
+		if part:IsA("BasePart") then
+			if not modified[part] then
+				modified[part] = {original = part.CanCollide, seen = true}
+			else
+				modified[part].seen = true
+			end
+			part.CanCollide = false
+		end
+	end
+
+	-- Restore parts that are no longer in range
+	for part, data in pairs(modified) do
+		if not data.seen or not part.Parent then
+			if part and part.Parent then
+				part.CanCollide = data.original
+			end
+			modified[part] = nil
+		end
+	end
+end)
+
+-- Toggle integration
+-- Example integration with your MiscTab toggle
+MiscTab:CreateToggle({
+	Name = "Noclip",
+	CurrentValue = false,
+	Flag = "Noclip_Toggle",
+	Callback = function(Value)
+		noclipEnabled = Value
+		showFrame("Noclip " .. (Value and "Enabled" or "Disabled"))
+		task.delay(1.5, hideFrame)
+	end
+})
+
 local TweenService = game:GetService("TweenService")
 
 local BulletTracesEnabled = false
