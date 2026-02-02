@@ -625,19 +625,30 @@ local respawnTime = 10
 local selectionActive, destroyEnabled = false, false
 local outline, destroyedParts = nil, {}
 
--- noclip
+-- Noclip function
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local RANGE = 2.5
+local RANGE = 2,5
 local FloatValue = -3.1
 
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-
 local noclipEnabled = false
+local character, hrp, modified, overlapParams
+modified = {}
+
+local function setupCharacter(char)
+	character = char
+	hrp = char:WaitForChild("HumanoidRootPart")
+	overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.RaycastFilterType.Blacklist
+	overlapParams.FilterDescendantsInstances = { character }
+	modified = {}
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+player.CharacterAdded:Connect(setupCharacter)
 
 local bubble = Instance.new("Part")
 bubble.Name = "NoclipBubble"
@@ -659,19 +670,6 @@ floatPad.Transparency = 1
 floatPad.Anchored = true
 floatPad.CanCollide = true
 floatPad.Parent = workspace
-
-local modified = {}
-
-local overlapParams = OverlapParams.new()
-overlapParams.FilterType = Enum.RaycastFilterType.Blacklist
-overlapParams.FilterDescendantsInstances = { character }
-
-player.CharacterAdded:Connect(function(char)
-	character = char
-	hrp = char:WaitForChild("HumanoidRootPart")
-	overlapParams.FilterDescendantsInstances = { character }
-	modified = {}
-end)
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
@@ -729,7 +727,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 MiscTab:CreateToggle({
-	Name = "Noclip",
+	Name = "Noclip - Hotkey: H",
 	CurrentValue = false,
 	Flag = "Noclip_Toggle",
 	Callback = function(Value)
