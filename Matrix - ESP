@@ -1,340 +1,250 @@
 --// Services
-local TS = game:GetService("TweenService")
-local TSrv = game:GetService("TextService")
 local Players = game:GetService("Players")
-local Core = game:GetService("CoreGui")
-local RS = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
 
---========================
---// Notification System
---========================
-local showing = false
-local function rnd(n)
-	n = math.min(n, 15)
-	local c, t, s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", {}, ''
-	for v in c:gmatch"." do t[#t+1] = v end
-	for i = 1, n do s ..= t[math.random(#t)] end
-	return s
-end
-
-local mainGui = Instance.new("ScreenGui")
-mainGui.Name = rnd(12)
-mainGui.IgnoreGuiInset = true
-mainGui.ResetOnSpawn = false
-mainGui.Parent = Core
-
-local notifyFrame = Instance.new("Frame")
-notifyFrame.AnchorPoint = Vector2.new(0.5, 0)
-notifyFrame.Position = UDim2.new(0.5, 0, 0, 240)
-notifyFrame.Size = UDim2.new(0, 0, 0, 30)
-notifyFrame.BackgroundColor3 = Color3.fromRGB(120, 30, 30)
-notifyFrame.BackgroundTransparency = 1
-notifyFrame.ClipsDescendants = true
-notifyFrame.Parent = mainGui
-Instance.new("UICorner", notifyFrame).CornerRadius = UDim.new(0, 4)
-
-local notifyStroke = Instance.new("UIStroke", notifyFrame)
-notifyStroke.Thickness = 1.75
-notifyStroke.Transparency = 1
-notifyStroke.Color = Color3.fromRGB(255, 120, 120)
-
-local notifyLabel = Instance.new("TextLabel")
-notifyLabel.Size = UDim2.new(1, -10, 1, 0)
-notifyLabel.Position = UDim2.new(0, 5, 0, 0)
-notifyLabel.BackgroundTransparency = 1
-notifyLabel.Font = Enum.Font.SourceSansBold
-notifyLabel.TextSize = 15
-notifyLabel.TextColor3 = Color3.fromRGB(255, 220, 220)
-notifyLabel.TextStrokeTransparency = 0.5
-notifyLabel.TextTransparency = 1
-notifyLabel.Text = ""
-notifyLabel.Parent = notifyFrame
-
-local function showFrame(text)
-	notifyLabel.Text = text
-	local sz = TSrv:GetTextSize(text, 15, notifyLabel.Font, Vector2.new(1000, 30))
-	TS:Create(notifyFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, sz.X + 20, 0, sz.Y + 10),
-		BackgroundTransparency = 0
-	}):Play()
-	TS:Create(notifyLabel, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
-	TS:Create(notifyStroke, TweenInfo.new(0.25), { Transparency = 0.3 }):Play()
-	showing = true
-end
-
-local function hideFrame()
-	if not showing then return end
-	TS:Create(notifyFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Size = UDim2.new(0, 0, 0, notifyFrame.AbsoluteSize.Y),
-		BackgroundTransparency = 1
-	}):Play()
-	TS:Create(notifyLabel, TweenInfo.new(0.25), { TextTransparency = 1 }):Play()
-	TS:Create(notifyStroke, TweenInfo.new(0.25), { Transparency = 1 }):Play()
-	showing = false
-end
-
---========================
---// Rayfield GUI
---========================
+--// Rayfield UI
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
-	Name = "Matrix Hub",
-	LoadingTitle = "Loading Assets",
-	LoadingSubtitle = "by MISHKO & tester",
+	Name = "Universal Matrix - ESP",
+	LoadingTitle = "Loading Matrix Assets",
+	LoadingSubtitle = "by LADX",
 	ConfigurationSaving = { Enabled = true, FolderName = "MyGameConfigs", FileName = "Config" }
 })
 
---========================
---// Visuals Tab & ESP Toggles
---========================
-local VisualsTab = Window:CreateTab("Visuals", 4483362458)
-local ESPEnabled, ESPBox, ESPHealth, ESPNames, ESPDistance, ESPTracers, ESPSkeletons = false, false, false, false, false, false, false
+local ESPEnabled = true
+local ESPSettings = {
+	Boxes = true,
+	Health = true,
+	Names = true,
+	Distance = true,
+	Tracers = true
+}
 
-VisualsTab:CreateToggle({ Name = "ESP", CurrentValue = false, Flag = "ESP_Toggle", Callback = function(Value)
-	ESPEnabled = Value
-	showFrame("ESP "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-VisualsTab:CreateToggle({ Name = "ESP Box", CurrentValue = false, Flag = "ESP_Box_Toggle", Callback = function(Value)
-	ESPBox = Value
-	showFrame("ESP Box "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-VisualsTab:CreateToggle({ Name = "ESP Health", CurrentValue = false, Flag = "ESP_Health_Toggle", Callback = function(Value)
-	ESPHealth = Value
-	showFrame("ESP Health "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-VisualsTab:CreateToggle({ Name = "ESP Names", CurrentValue = false, Flag = "ESP_Names_Toggle", Callback = function(Value)
-	ESPNames = Value
-	showFrame("ESP Names "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-VisualsTab:CreateToggle({ Name = "ESP Distance", CurrentValue = false, Flag = "ESP_Distance_Toggle", Callback = function(Value)
-	ESPDistance = Value
-	showFrame("ESP Distance "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-VisualsTab:CreateToggle({ Name = "ESP Tracers", CurrentValue = false, Flag = "ESP_Tracers_Toggle", Callback = function(Value)
-	ESPTracers = Value
-	showFrame("ESP Tracers "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-VisualsTab:CreateToggle({ Name = "ESP Skeletons", CurrentValue = false, Flag = "ESP_Skeletons_Toggle", Callback = function(Value)
-	ESPSkeletons = Value
-	showFrame("ESP Skeletons "..(Value and "Enabled" or "Disabled"))
-	task.delay(1.5, hideFrame)
-end})
-
---========================
---// ESP Drawing System
---========================
-local ESPs = {}
-local skeletons = {}
-
-local function shouldShowESP(plr)
-	if not plr or plr == LocalPlayer then return false end
-	return true -- show all players
+--// Notification system
+local function notify(msg)
+	game:GetService("StarterGui"):SetCore("SendNotification", {
+		Title = "Matrix ESP",
+		Text = msg,
+		Duration = 2
+	})
 end
 
--- Create standard ESP
+--// ESP storage
+local ESPs = {}
+
+-- Smooth health color
+local function getHealthColor(hp, maxHp)
+	local pct = math.clamp(hp / maxHp, 0, 1)
+	if pct <= 0.5 then
+		return Color3.fromRGB(255, math.floor(255 * (pct / 0.5)), 0)
+	else
+		local greenPct = (pct - 0.5) / 0.5
+		return Color3.fromRGB(math.floor(255 * (1 - greenPct)), 255, 0)
+	end
+end
+
+-- Create ESP for a player
 local function createESP(plr)
-	if ESPs[plr] then return end
-	local box = Drawing.new("Square"); box.Visible=false; box.Thickness=2; box.Filled=false; box.Transparency=1
-	local health = Drawing.new("Square"); health.Visible=false; health.Filled=true; health.Thickness=1; health.Transparency=1
-	local nameT = Drawing.new("Text"); nameT.Visible=false; nameT.Center=true; nameT.Outline=true; nameT.Size=18; nameT.Color=Color3.fromRGB(255,0,0)
-	local distT = Drawing.new("Text"); distT.Visible=false; distT.Center=true; distT.Outline=true; distT.Size=16; distT.Color=Color3.fromRGB(255,0,0)
-	local tracer = Drawing.new("Line"); tracer.Visible=false; tracer.Color=Color3.fromRGB(255,0,0); tracer.Thickness=1.5
-	ESPs[plr] = {Box=box, HealthBar=health, NameText=nameT, DistanceText=distT, Tracer=tracer}
+	if plr == LocalPlayer or ESPs[plr] then return end
+
+	-- Box outline
+	local boxOutline = Drawing.new("Square")
+	boxOutline.Visible = true
+	boxOutline.Thickness = 3
+	boxOutline.Filled = false
+	boxOutline.Transparency = 1
+	boxOutline.Color = Color3.fromRGB(25, 25, 25) -- dark outline
+
+	-- Main box
+	local box = Drawing.new("Square")
+	box.Visible = true
+	box.Thickness = 2
+	box.Filled = false
+	box.Transparency = 1
+	box.Color = Color3.fromRGB(255, 0, 0) -- main color
+
+	-- Health bar outline
+	local healthOutline = Drawing.new("Square")
+	healthOutline.Visible = true
+	healthOutline.Filled = false
+	healthOutline.Thickness = 1.5
+	healthOutline.Color = Color3.fromRGB(25,25,25)
+
+	-- Health bar
+	local healthBar = Drawing.new("Square")
+	healthBar.Visible = true
+	healthBar.Filled = true
+	healthBar.Thickness = 1
+	healthBar.Transparency = 1
+	healthBar.Color = Color3.fromRGB(255, 0, 0)
+
+	-- Name and distance
+	local nameText = Drawing.new("Text")
+	nameText.Center = true
+	nameText.Outline = true
+	nameText.Size = 18
+	nameText.Color = Color3.fromRGB(255, 255, 255)
+	nameText.Visible = true
+
+	local distanceText = Drawing.new("Text")
+	distanceText.Center = true
+	distanceText.Outline = true
+	distanceText.Size = 16
+	distanceText.Color = Color3.fromRGB(255, 255, 255)
+	distanceText.Visible = true
+
+	-- Tracer
+	local tracerLine = Drawing.new("Line")
+	tracerLine.Visible = true
+	tracerLine.Color = Color3.fromRGB(255, 0, 0)
+	tracerLine.Thickness = 1.5
+
+	ESPs[plr] = {
+		Box = box,
+		Outline = boxOutline,
+		HealthBar = healthBar,
+		HealthOutline = healthOutline,
+		NameText = nameText,
+		DistanceText = distanceText,
+		Tracer = tracerLine
+	}
 end
 
 local function removeESP(plr)
 	local esp = ESPs[plr]
 	if esp then
-		esp.Box:Remove(); esp.HealthBar:Remove(); esp.NameText:Remove(); esp.DistanceText:Remove(); esp.Tracer:Remove()
+		esp.Box:Remove()
+		esp.Outline:Remove()
+		esp.HealthBar:Remove()
+		esp.HealthOutline:Remove()
+		esp.NameText:Remove()
+		esp.DistanceText:Remove()
+		esp.Tracer:Remove()
 		ESPs[plr] = nil
 	end
 end
 
---========================
---// Skeleton ESP helpers
---========================
-local function newLine()
-	local l = Drawing.new("Line")
-	l.Color = Color3.fromRGB(255, 96, 96) 
-	l.Thickness = 2
-	l.Transparency = 1
-	l.Visible = false
-	return l
-end
+-- Add existing players
+for _, plr in ipairs(Players:GetPlayers()) do createESP(plr) end
+Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(removeESP)
 
-local function getMotorWorldPos(motor)
-	if not motor or not motor.Part0 then return nil end
-	return (motor.Part0.CFrame * motor.C0).Position
-end
-
-local function drawLineWorld(p1,p2,line)
-	if not p1 or not p2 then line.Visible=false return end
-	local s1,on1 = Camera:WorldToViewportPoint(p1)
-	local s2,on2 = Camera:WorldToViewportPoint(p2)
-	if on1 and on2 then
-		line.From = Vector2.new(s1.X,s1.Y)
-		line.To = Vector2.new(s2.X,s2.Y)
-		line.Visible = true
-	else
-		line.Visible = false
-	end
-end
-
-local function createSkeletonESP(player)
-	if skeletons[player] then return end
-	if player == LocalPlayer then return end
-	local lines = {}
-	for i=1,9 do lines[i]=newLine() end
-	skeletons[player] = lines
-	RS.RenderStepped:Connect(function()
-		if not ESPSkeletons or not player.Character then
-			for _,l in pairs(lines) do l.Visible=false end
-			return
-		end
-		local char = player.Character
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		local leftLeg = char:FindFirstChild("Left Leg") or char:FindFirstChild("LeftLowerLeg")
-		local rightLeg = char:FindFirstChild("Right Leg") or char:FindFirstChild("RightLowerLeg")
-		if not hrp or not leftLeg or not rightLeg then return end
-		local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
-		local leftShoulder,rightShoulder = torso:FindFirstChild("LeftShoulder"),torso:FindFirstChild("RightShoulder")
-		local neck = torso:FindFirstChild("Neck")
-		for _,l in pairs(lines) do l.Color=Color3.fromRGB(255,0,0) end
-		drawLineWorld(leftLeg.Position, hrp.Position, lines[1])
-		drawLineWorld(rightLeg.Position, hrp.Position, lines[2])
-		drawLineWorld(hrp.Position, getMotorWorldPos(leftShoulder), lines[3])
-		drawLineWorld(hrp.Position, getMotorWorldPos(rightShoulder), lines[4])
-		drawLineWorld(hrp.Position, getMotorWorldPos(neck), lines[5])
-	end)
-end
-
-for _,plr in ipairs(Players:GetPlayers()) do
-	createESP(plr)
-	createSkeletonESP(plr)
-end
-Players.PlayerAdded:Connect(function(plr)
-	createESP(plr)
-	createSkeletonESP(plr)
-end)
-Players.PlayerRemoving:Connect(function(plr)
-	removeESP(plr)
-	if skeletons[plr] then skeletons[plr]=nil end
-end)
-
---========================
---// ESP Render Loop
---========================
-RS.RenderStepped:Connect(function()
-	if not ESPEnabled then
-		for _,esp in pairs(ESPs) do
-			esp.Box.Visible=false
-			esp.NameText.Visible=false
-			esp.DistanceText.Visible=false
-			esp.HealthBar.Visible=false
-			esp.Tracer.Visible=false
-		end
-		return
-	end
-	for plr,esp in pairs(ESPs) do
-		if not shouldShowESP(plr) then
-			esp.Box.Visible=false
-			esp.NameText.Visible=false
-			esp.DistanceText.Visible=false
-			esp.HealthBar.Visible=false
-			esp.Tracer.Visible=false
-			continue
-		end
+-- Render loop
+RunService.RenderStepped:Connect(function()
+	for plr, esp in pairs(ESPs) do
 		local char = plr.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if hum and hum.Health>0 then
-			local cf,size = char:GetBoundingBox()
-			local minX,minY = math.huge,math.huge
-			local maxX,maxY = -math.huge,-math.huge
-			local corners = {
-				(cf*CFrame.new(size.X/2,size.Y/2,size.Z/2)).Position,
-				(cf*CFrame.new(-size.X/2,size.Y/2,size.Z/2)).Position,
-				(cf*CFrame.new(size.X/2,-size.Y/2,size.Z/2)).Position,
-				(cf*CFrame.new(-size.X/2,-size.Y/2,size.Z/2)).Position,
-				(cf*CFrame.new(size.X/2,size.Y/2,-size.Z/2)).Position,
-				(cf*CFrame.new(-size.X/2,size.Y/2,-size.Z/2)).Position,
-				(cf*CFrame.new(size.X/2,-size.Y/2,-size.Z/2)).Position,
-				(cf*CFrame.new(-size.X/2,-size.Y/2,-size.Z/2)).Position,
-			}
-			local onScreen = false
-			for _,pos in ipairs(corners) do
-				local screenPos,visible = Camera:WorldToViewportPoint(pos)
-				if visible then
-					onScreen=true
-					minX=math.min(minX,screenPos.X)
-					minY=math.min(minY,screenPos.Y)
-					maxX=math.max(maxX,screenPos.X)
-					maxY=math.max(maxY,screenPos.Y)
-				end
+		if not char or not hum or hum.Health <= 0 then
+			esp.Box.Visible = false
+			esp.Outline.Visible = false
+			esp.HealthBar.Visible = false
+			esp.HealthOutline.Visible = false
+			esp.NameText.Visible = false
+			esp.DistanceText.Visible = false
+			esp.Tracer.Visible = false
+			continue
+		end
+
+		local cf, size = char:GetBoundingBox()
+		local corners = {
+			(cf * CFrame.new( size.X/2,  size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2,  size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new( size.X/2, -size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2, -size.Y/2,  size.Z/2)).Position,
+			(cf * CFrame.new( size.X/2,  size.Y/2, -size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2,  size.Y/2, -size.Z/2)).Position,
+			(cf * CFrame.new( size.X/2, -size.Y/2, -size.Z/2)).Position,
+			(cf * CFrame.new(-size.X/2, -size.Y/2, -size.Z/2)).Position,
+		}
+
+		local minX, minY = math.huge, math.huge
+		local maxX, maxY = -math.huge, -math.huge
+		local onScreen = false
+
+		for _, pos in ipairs(corners) do
+			local screenPos, visible = Camera:WorldToViewportPoint(pos)
+			if visible then
+				onScreen = true
+				minX = math.min(minX, screenPos.X)
+				minY = math.min(minY, screenPos.Y)
+				maxX = math.max(maxX, screenPos.X)
+				maxY = math.max(maxY, screenPos.Y)
 			end
-			if onScreen then
-				-- Box
-				esp.Box.Visible = ESPBox
-				if ESPBox then
-					esp.Box.Position = Vector2.new(minX,minY)
-					esp.Box.Size = Vector2.new(maxX-minX,maxY-minY)
-					esp.Box.Color = Color3.fromRGB(255,0,0)
-				end
-				-- Health
-				esp.HealthBar.Visible=ESPHealth
-				if ESPHealth then
-					local hp = math.clamp(hum.Health/hum.MaxHealth,0,1)
-					esp.HealthBar.Size=Vector2.new(4,(maxY-minY)*hp)
-					esp.HealthBar.Position=Vector2.new(minX-6,maxY-esp.HealthBar.Size.Y)
-					esp.HealthBar.Color=Color3.fromRGB(255,0,0)
-				end
-				-- Name
-				esp.NameText.Visible=ESPNames
-				if ESPNames then
-					esp.NameText.Text=plr.Name
-					esp.NameText.Position=Vector2.new((minX+maxX)/2,minY-20)
-					esp.NameText.Color=Color3.fromRGB(255,0,0)
-				end
-				-- Distance
-				esp.DistanceText.Visible=ESPDistance
-				if ESPDistance then
-					local dist=(cf.Position-Camera.CFrame.Position).Magnitude
-					esp.DistanceText.Text=string.format("[%.0f]",dist)
-					esp.DistanceText.Position=Vector2.new((minX+maxX)/2,minY-36)
-					esp.DistanceText.Color=Color3.fromRGB(255,0,0)
-				end
-				-- Tracer
-				esp.Tracer.Visible=ESPTracers
-				if ESPTracers then
-					esp.Tracer.From=Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
-					esp.Tracer.To=Vector2.new((minX+maxX)/2,maxY)
-					esp.Tracer.Color=Color3.fromRGB(255,0,0)
-				end
-			else
-				esp.Box.Visible=false
-				esp.NameText.Visible=false
-				esp.DistanceText.Visible=false
-				esp.HealthBar.Visible=false
-				esp.Tracer.Visible=false
-			end
+		end
+
+		if onScreen then
+			-- Outline first
+			esp.Outline.Position = Vector2.new(minX-1.5, minY-1.5)
+			esp.Outline.Size = Vector2.new(maxX-minX+3, maxY-minY+3)
+			esp.Outline.Visible = ESPEnabled and ESPSettings.Boxes
+
+			-- Box
+			esp.Box.Position = Vector2.new(minX, minY)
+			esp.Box.Size = Vector2.new(maxX-minX, maxY-minY)
+			esp.Box.Visible = ESPEnabled and ESPSettings.Boxes
+
+			-- Health outline
+			esp.HealthOutline.Position = Vector2.new(minX-7, minY)
+			esp.HealthOutline.Size = Vector2.new(6, maxY-minY)
+			esp.HealthOutline.Visible = ESPEnabled and ESPSettings.Health
+
+			-- Health bar
+			local hpPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+			esp.HealthBar.Size = Vector2.new(4, (maxY-minY)*hpPercent)
+			esp.HealthBar.Position = Vector2.new(minX-6, maxY-esp.HealthBar.Size.Y)
+			esp.HealthBar.Color = getHealthColor(hum.Health, hum.MaxHealth)
+			esp.HealthBar.Visible = ESPEnabled and ESPSettings.Health
+
+			-- Name
+			esp.NameText.Text = plr.Name
+			esp.NameText.Position = Vector2.new((minX+maxX)/2, minY-20)
+			esp.NameText.Visible = ESPEnabled and ESPSettings.Names
+
+			-- Distance
+			local dist = (cf.Position - Camera.CFrame.Position).Magnitude
+			esp.DistanceText.Text = string.format("[%.0f]", dist)
+			esp.DistanceText.Position = Vector2.new((minX+maxX)/2, minY-36)
+			esp.DistanceText.Visible = ESPEnabled and ESPSettings.Distance
+
+			-- Tracer
+			esp.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+			esp.Tracer.To = Vector2.new((minX+maxX)/2, maxY)
+			esp.Tracer.Visible = ESPEnabled and ESPSettings.Tracers
 		else
-			esp.Box.Visible=false
-			esp.NameText.Visible=false
-			esp.DistanceText.Visible=false
-			esp.HealthBar.Visible=false
-			esp.Tracer.Visible=false
+			esp.Box.Visible = false
+			esp.Outline.Visible = false
+			esp.HealthBar.Visible = false
+			esp.HealthOutline.Visible = false
+			esp.NameText.Visible = false
+			esp.DistanceText.Visible = false
+			esp.Tracer.Visible = false
 		end
 	end
 end)
+
+--// GUI toggles using Rayfield
+local MiscTab = Window:CreateTab("ESP Settings", 4483362458)
+
+local function createToggle(name, key)
+	MiscTab:CreateToggle({
+		Name = name,
+		CurrentValue = ESPSettings[key],
+		Flag = "ESP_"..key,
+		Callback = function(val)
+			ESPSettings[key] = val
+			notify(name.." "..(val and "Enabled" or "Disabled"))
+		end
+	})
+end
+
+createToggle("Boxes", "Boxes")
+createToggle("Health", "Health")
+createToggle("Names", "Names")
+createToggle("Distance", "Distance")
+createToggle("Tracers", "Tracers")
+
+notify("Universal Matrix - ESP Loaded")
