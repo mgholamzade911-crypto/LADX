@@ -351,6 +351,48 @@ RS.RenderStepped:Connect(function()
         return
     end
 
+local lockTracer = Drawing.new("Line")
+lockTracer.Visible = false
+lockTracer.Thickness = 2.8
+lockTracer.Transparency = 1
+lockTracer.Color = Color3.fromRGB(0, 255, 80)
+
+local lockTracerOutline = Drawing.new("Line")
+lockTracerOutline.Visible = false
+lockTracerOutline.Thickness = 5
+lockTracerOutline.Transparency = 0.6
+lockTracerOutline.Color = Color3.fromRGB(0, 0, 0)
+
+RS.RenderStepped:Connect(function()
+    if lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild(AIM_PART) then
+        local part = lockedTarget.Character[AIM_PART]
+        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+
+        if onScreen then
+            local fromPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            local toPos = Vector2.new(screenPos.X, screenPos.Y)
+
+            lockTracer.Visible = true
+            lockTracerOutline.Visible = true
+
+            lockTracer.From = fromPos
+            lockTracer.To = toPos
+            lockTracerOutline.From = fromPos
+            lockTracerOutline.To = toPos
+
+            local t = tick() * 5
+            local pulse = (math.sin(t) + 1) / 2
+            lockTracer.Color = Color3.fromRGB(0, 255, 80):Lerp(Color3.fromRGB(120, 255, 120), pulse)
+        else
+            lockTracer.Visible = false
+            lockTracerOutline.Visible = false
+        end
+    else
+        lockTracer.Visible = false
+        lockTracerOutline.Visible = false
+    end
+end)
+
     -- ESP drawing logic continues here...
 
 	for plr, esp in pairs(ESPs) do
