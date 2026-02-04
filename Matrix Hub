@@ -563,6 +563,77 @@ MiscTab:CreateSlider({
     end
 })
 
+-- Storage for removed instances
+local RemovedObjects = {}
+local Removed = false
+
+-- Helper function to remove and store objects
+local function removeTargets()
+	if Removed then return end
+	Removed = true
+
+	-- Clear old data just in case
+	RemovedObjects = {}
+
+	-- 1) Workspace.Doors and all children
+	local doorsFolder = workspace:FindFirstChild("Doors")
+	if doorsFolder then
+		for _, obj in ipairs(doorsFolder:GetChildren()) do
+			table.insert(RemovedObjects, {
+				Instance = obj,
+				Parent = obj.Parent
+			})
+			obj.Parent = nil
+		end
+	end
+
+	-- 2) Workspace.Prison_Fences.Prison_Gate
+	local prisonFences = workspace:FindFirstChild("Prison_Fences")
+	if prisonFences then
+		local prisonGate = prisonFences:FindFirstChild("Prison_Gate")
+		if prisonGate then
+			table.insert(RemovedObjects, {
+				Instance = prisonGate,
+				Parent = prisonGate.Parent
+			})
+			prisonGate.Parent = nil
+		end
+	end
+end
+
+-- Helper function to restore objects
+local function restoreTargets()
+	if not Removed then return end
+	Removed = false
+
+	for _, data in ipairs(RemovedObjects) do
+		if data.Instance and data.Parent then
+			data.Instance.Parent = data.Parent
+		end
+	end
+
+	RemovedObjects = {}
+end
+
+-- Your toggle
+MiscTab:CreateToggle({
+	Name = "Remove Doors & Prison Gate",
+	CurrentValue = false,
+	Flag = "Remove_Doors_Prison_Gate_Toggle",
+	Callback = function(Value)
+		if Value then
+			removeTargets()
+			showFrame("Removed Doors & Gate")
+		else
+			restoreTargets()
+			showFrame("Restored Doors & Gate")
+		end
+
+		task.delay(1.5, hideFrame)
+	end
+})
+
+
 
 -- NoClip
 local Players = game:GetService("Players")
