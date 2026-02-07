@@ -3,19 +3,91 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
+
+--// Game Check
+local PRISON_LIFE_ID = 155615604
+local IsPrisonLife = (game.PlaceId == PRISON_LIFE_ID)
 
 --// Rayfield UI
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
-	Name = "Universal Matrix - ESP",
+	Name = "Universal Matrix",
 	LoadingTitle = "Loading Matrix Assets",
 	LoadingSubtitle = "by LADX",
 	ConfigurationSaving = { Enabled = true, FolderName = "MyGameConfigs", FileName = "Config" }
 })
 
-local ESPEnabled = true
+--// Rayfield Notify (Game Mode)
+if IsPrisonLife then
+	Rayfield:Notify({
+		Title = "Matrix",
+		Content = "Prison Life - Matrix Supported",
+		Duration = 6.5,
+		Image = 124052038391729,
+	})
+else
+	Rayfield:Notify({
+		Title = "Matrix",
+		Content = "Universal Mode Enabled",
+		Duration = 6.5,
+		Image = 124052038391729,
+	})
+end
+
+-- Intro Splash Screen
+
+local TS = game:GetService("TweenService")
+local CG = game:GetService("CoreGui")
+
+local function rnd(n)
+	n = math.min(n, 15)
+	local c, t, s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", {}, ""
+	for v in c:gmatch"." do t[#t+1] = v end
+	for i = 1, n do s ..= t[math.random(#t)] end
+	return s
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name, gui.IgnoreGuiInset, gui.ResetOnSpawn, gui.Parent = rnd(12), true, false, CG
+
+local frame = Instance.new("Frame")
+frame.Name, frame.Parent = rnd(10), gui
+frame.AnchorPoint, frame.Position = Vector2.new(0.5,0.5), UDim2.fromScale(0.5,0.5)
+frame.Size, frame.BackgroundColor3 = UDim2.fromOffset(135,135), Color3.fromRGB(45,45,45)
+frame.BackgroundTransparency, frame.BorderSizePixel, frame.ZIndex = 1, 0, 1
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius, corner.Parent = UDim.new(0,100), frame
+
+local img = Instance.new("ImageLabel")
+img.Name, img.Parent = rnd(10), gui
+img.AnchorPoint, img.Position = Vector2.new(0.5,0.5), UDim2.fromScale(0.5,0.5)
+img.Size, img.BackgroundTransparency = UDim2.fromOffset(140,140), 1
+img.Image, img.ImageTransparency, img.ScaleType, img.ZIndex = "rbxassetid://124052038391729", 1, Enum.ScaleType.Fit, 2
+
+local tin = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local tout = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+TS:Create(frame, tin, {BackgroundTransparency = 0}):Play()
+local imgIn = TS:Create(img, tin, {ImageTransparency = 0})
+imgIn:Play()
+imgIn.Completed:Wait()
+
+task.wait(2.75)
+
+TS:Create(frame, tout, {BackgroundTransparency = 1}):Play()
+local imgOut = TS:Create(img, tout, {ImageTransparency = 1})
+imgOut:Play()
+imgOut.Completed:Wait()
+
+gui:Destroy()
+
+--// Settings
+local MasterESP = true
 local ESPSettings = {
 	Boxes = true,
 	Health = true,
@@ -24,19 +96,145 @@ local ESPSettings = {
 	Tracers = true
 }
 
---// Notification system
+local FOVEnabled = true
+local FOVRadius = 150
+
+-- Aimbot
+local AimbotEnabled = true
+local RMBDown = false
+local LockedPlayer = nil
+local LockPart = "Head" -- Head, Torso ONLY
+
+-- Colors
+local PickedColor = Color3.fromRGB(255, 0, 0)
+local BaseESPColor = PickedColor
+
+-- RGB Settings
+local RGBEnabled = false
+local hue = 0
+
+--// Notify helper
 local function notify(msg)
-	game:GetService("StarterGui"):SetCore("SendNotification", {
-		Title = "Matrix ESP",
+	StarterGui:SetCore("SendNotification", {
+		Title = "Matrix",
 		Text = msg,
 		Duration = 2
 	})
 end
 
+--// FOV Circle
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+FOVCircle.Color = BaseESPColor
+FOVCircle.Radius = FOVRadius
+FOVCircle.Visible = FOVEnabled
+
 --// ESP storage
 local ESPs = {}
 
--- Smooth health color
+--// Team check
+local function isEnemy(plr)
+	if not plr or plr == LocalPlayer then return false end
+
+	-- Universal mode
+	if not IsPrisonLife then
+		return true
+	end
+
+	-- Prison Life logic
+	if not plr.Team or not LocalPlayer.Team then
+		return true
+	end
+
+	local myTeam = LocalPlayer.Team.Name
+	local theirTeam = plr.Team.Name
+
+	if myTeam == "Inmates" then
+		return theirTeam == "Guards" or theirTeam == "Criminals"
+	elseif myTeam == "Guards" then
+		return theirTeam == "Inmates" or theirTeam == "Criminals"
+	elseif myTeam == "Criminals" then
+		return theirTeam == "Guards" or theirTeam == "Inmates"
+	end
+
+	return true
+end
+
+--// Guard check
+local function isGuards()
+	if not IsPrisonLife then
+		return false
+	end
+	return LocalPlayer.Team and LocalPlayer.Team.Name == "Guards"
+end
+
+--// Status check
+local function getStatus(char)
+	if not IsPrisonLife then
+		return nil
+	end
+	if not char then return nil end
+
+	if char:GetAttribute("Hostile") then
+		return "Hostile"
+	end
+	if char:GetAttribute("Trespassing") then
+		return "Trespassing"
+	end
+	return nil
+end
+
+--// Lock permission
+local function canLockPlayer(plr)
+	-- Universal mode: always allow
+	if not IsPrisonLife then
+		return true
+	end
+
+	-- Prison Life rules
+	if not isGuards() then
+		return true
+	end
+	if not plr or not plr.Character then return false end
+
+	local status = getStatus(plr.Character)
+	if status == "Hostile" then
+		return true
+	end
+
+	return false
+end
+
+--// Get lock part
+local function getLockPart(char)
+	if not char then return nil end
+	if LockPart == "Head" then
+		return char:FindFirstChild("Head")
+	elseif LockPart == "Torso" then
+		return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+	end
+	return char:FindFirstChild("Head")
+end
+
+--// Visibility check
+local function isVisible(targetChar, part)
+	if not targetChar or not part then return false end
+
+	local origin = Camera.CFrame.Position
+	local targetPos = part.Position
+	local direction = (targetPos - origin)
+
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+	rayParams.FilterDescendantsInstances = {LocalPlayer.Character, targetChar}
+
+	local result = Workspace:Raycast(origin, direction, rayParams)
+	return result == nil
+end
+
+--// Health color
 local function getHealthColor(hp, maxHp)
 	local pct = math.clamp(hp / maxHp, 0, 1)
 	if pct <= 0.5 then
@@ -47,60 +245,46 @@ local function getHealthColor(hp, maxHp)
 	end
 end
 
--- Create ESP for a player
+--// Create ESP
 local function createESP(plr)
 	if plr == LocalPlayer or ESPs[plr] then return end
 
-	-- Box outline
 	local boxOutline = Drawing.new("Square")
-	boxOutline.Visible = true
 	boxOutline.Thickness = 3
 	boxOutline.Filled = false
 	boxOutline.Transparency = 1
-	boxOutline.Color = Color3.fromRGB(25, 25, 25) -- dark outline
+	boxOutline.Color = Color3.fromRGB(25, 25, 25)
 
-	-- Main box
 	local box = Drawing.new("Square")
-	box.Visible = true
 	box.Thickness = 2
 	box.Filled = false
 	box.Transparency = 1
-	box.Color = Color3.fromRGB(255, 0, 0) -- main color
+	box.Color = BaseESPColor
 
-	-- Health bar outline
 	local healthOutline = Drawing.new("Square")
-	healthOutline.Visible = true
 	healthOutline.Filled = false
 	healthOutline.Thickness = 1.5
 	healthOutline.Color = Color3.fromRGB(25,25,25)
 
-	-- Health bar
 	local healthBar = Drawing.new("Square")
-	healthBar.Visible = true
 	healthBar.Filled = true
 	healthBar.Thickness = 1
 	healthBar.Transparency = 1
-	healthBar.Color = Color3.fromRGB(255, 0, 0)
 
-	-- Name and distance
 	local nameText = Drawing.new("Text")
 	nameText.Center = true
 	nameText.Outline = true
 	nameText.Size = 18
-	nameText.Color = Color3.fromRGB(255, 255, 255)
-	nameText.Visible = true
+	nameText.Color = Color3.fromRGB(255,255,255)
 
 	local distanceText = Drawing.new("Text")
 	distanceText.Center = true
 	distanceText.Outline = true
 	distanceText.Size = 16
-	distanceText.Color = Color3.fromRGB(255, 255, 255)
-	distanceText.Visible = true
+	distanceText.Color = Color3.fromRGB(255,255,255)
 
-	-- Tracer
 	local tracerLine = Drawing.new("Line")
-	tracerLine.Visible = true
-	tracerLine.Color = Color3.fromRGB(255, 0, 0)
+	tracerLine.Color = BaseESPColor
 	tracerLine.Thickness = 1.5
 
 	ESPs[plr] = {
@@ -117,35 +301,108 @@ end
 local function removeESP(plr)
 	local esp = ESPs[plr]
 	if esp then
-		esp.Box:Remove()
-		esp.Outline:Remove()
-		esp.HealthBar:Remove()
-		esp.HealthOutline:Remove()
-		esp.NameText:Remove()
-		esp.DistanceText:Remove()
-		esp.Tracer:Remove()
+		for _,v in pairs(esp) do
+			v:Remove()
+		end
 		ESPs[plr] = nil
 	end
 end
 
--- Add existing players
 for _, plr in ipairs(Players:GetPlayers()) do createESP(plr) end
 Players.PlayerAdded:Connect(createESP)
 Players.PlayerRemoving:Connect(removeESP)
 
--- Render loop
-RunService.RenderStepped:Connect(function()
+--// Aimbot target
+local function getClosestPlayerInFOV()
+	local closest, closestDist = nil, math.huge
+	local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and isEnemy(plr) and plr.Character and canLockPlayer(plr) then
+			local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+			local part = getLockPart(plr.Character)
+			if hum and hum.Health > 0 and part and isVisible(plr.Character, part) then
+				local pos, visible = Camera:WorldToViewportPoint(part.Position)
+				if visible then
+					local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+					if dist < FOVRadius and dist < closestDist then
+						closestDist = dist
+						closest = plr
+					end
+				end
+			end
+		end
+	end
+
+	return closest
+end
+
+--// RMB Input
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		RMBDown = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		RMBDown = false
+		LockedPlayer = nil
+	end
+end)
+
+--// Render loop
+RunService.RenderStepped:Connect(function(dt)
+	if RGBEnabled then
+		hue = (hue + dt * 0.5) % 1
+		BaseESPColor = Color3.fromHSV(hue, 1, 1)
+	else
+		BaseESPColor = PickedColor
+	end
+
+	FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+	FOVCircle.Radius = FOVRadius
+	FOVCircle.Visible = FOVEnabled
+
+	-- Lock logic
+	if AimbotEnabled and RMBDown then
+		if not LockedPlayer or not LockedPlayer.Character then
+			LockedPlayer = getClosestPlayerInFOV()
+		end
+
+		if LockedPlayer and LockedPlayer.Character then
+			local status = getStatus(LockedPlayer.Character)
+
+			if IsPrisonLife and isGuards() and (status == "Trespassing" or status == nil) then
+				FOVCircle.Color = Color3.fromRGB(255, 0, 0)
+				LockedPlayer = nil
+			else
+				local part = getLockPart(LockedPlayer.Character)
+				if part and isVisible(LockedPlayer.Character, part) then
+					Camera.CFrame = CFrame.new(Camera.CFrame.Position, part.Position)
+					FOVCircle.Color = Color3.fromRGB(0,255,0)
+				else
+					FOVCircle.Color = BaseESPColor
+					LockedPlayer = nil
+				end
+			end
+		else
+			FOVCircle.Color = BaseESPColor
+		end
+	else
+		FOVCircle.Color = BaseESPColor
+	end
+
+	-- ESP update
+	local hidingOthers = (LockedPlayer ~= nil and RMBDown and AimbotEnabled)
+
 	for plr, esp in pairs(ESPs) do
 		local char = plr.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if not char or not hum or hum.Health <= 0 then
-			esp.Box.Visible = false
-			esp.Outline.Visible = false
-			esp.HealthBar.Visible = false
-			esp.HealthOutline.Visible = false
-			esp.NameText.Visible = false
-			esp.DistanceText.Visible = false
-			esp.Tracer.Visible = false
+
+		if not isEnemy(plr) or not char or not hum or hum.Health <= 0 or (hidingOthers and plr ~= LockedPlayer) then
+			for _,v in pairs(esp) do v.Visible = false end
 			continue
 		end
 
@@ -177,66 +434,144 @@ RunService.RenderStepped:Connect(function()
 		end
 
 		if onScreen then
-			-- Outline first
+			local isLocked = (plr == LockedPlayer and RMBDown and AimbotEnabled)
+			local status = getStatus(char)
+			local color
+
+			if isLocked then
+				color = Color3.fromRGB(0,255,0)
+			elseif IsPrisonLife and status == "Hostile" then
+				color = Color3.fromRGB(255,0,0)
+			elseif IsPrisonLife and isGuards() and status == "Trespassing" then
+				color = Color3.fromRGB(255,0,0)
+			else
+				color = BaseESPColor
+			end
+
+			esp.Box.Color = color
+			esp.Tracer.Color = color
+
 			esp.Outline.Position = Vector2.new(minX-1.5, minY-1.5)
 			esp.Outline.Size = Vector2.new(maxX-minX+3, maxY-minY+3)
-			esp.Outline.Visible = ESPEnabled and ESPSettings.Boxes
+			esp.Outline.Visible = MasterESP or ESPSettings.Boxes
 
-			-- Box
 			esp.Box.Position = Vector2.new(minX, minY)
 			esp.Box.Size = Vector2.new(maxX-minX, maxY-minY)
-			esp.Box.Visible = ESPEnabled and ESPSettings.Boxes
+			esp.Box.Visible = MasterESP or ESPSettings.Boxes
 
-			-- Health outline
 			esp.HealthOutline.Position = Vector2.new(minX-7, minY)
 			esp.HealthOutline.Size = Vector2.new(6, maxY-minY)
-			esp.HealthOutline.Visible = ESPEnabled and ESPSettings.Health
+			esp.HealthOutline.Visible = MasterESP or ESPSettings.Health
 
-			-- Health bar
 			local hpPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
 			esp.HealthBar.Size = Vector2.new(4, (maxY-minY)*hpPercent)
 			esp.HealthBar.Position = Vector2.new(minX-6, maxY-esp.HealthBar.Size.Y)
 			esp.HealthBar.Color = getHealthColor(hum.Health, hum.MaxHealth)
-			esp.HealthBar.Visible = ESPEnabled and ESPSettings.Health
+			esp.HealthBar.Visible = MasterESP or ESPSettings.Health
 
-			-- Name
 			esp.NameText.Text = plr.Name
 			esp.NameText.Position = Vector2.new((minX+maxX)/2, minY-20)
-			esp.NameText.Visible = ESPEnabled and ESPSettings.Names
+			esp.NameText.Visible = MasterESP or ESPSettings.Names
 
-			-- Distance
+			if IsPrisonLife and status == "Hostile" then
+				esp.NameText.Color = Color3.fromRGB(255,0,0)
+			else
+				esp.NameText.Color = Color3.fromRGB(255,255,255)
+			end
+
 			local dist = (cf.Position - Camera.CFrame.Position).Magnitude
 			esp.DistanceText.Text = string.format("[%.0f]", dist)
 			esp.DistanceText.Position = Vector2.new((minX+maxX)/2, minY-36)
-			esp.DistanceText.Visible = ESPEnabled and ESPSettings.Distance
+			esp.DistanceText.Visible = MasterESP or ESPSettings.Distance
 
-			-- Tracer
 			esp.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
 			esp.Tracer.To = Vector2.new((minX+maxX)/2, maxY)
-			esp.Tracer.Visible = ESPEnabled and ESPSettings.Tracers
+			esp.Tracer.Visible = MasterESP or ESPSettings.Tracers
 		else
-			esp.Box.Visible = false
-			esp.Outline.Visible = false
-			esp.HealthBar.Visible = false
-			esp.HealthOutline.Visible = false
-			esp.NameText.Visible = false
-			esp.DistanceText.Visible = false
-			esp.Tracer.Visible = false
+			for _,v in pairs(esp) do v.Visible = false end
 		end
 	end
 end)
 
---// GUI toggles using Rayfield
-local MiscTab = Window:CreateTab("ESP Settings", 4483362458)
+--// Tabs
+local MiscTab = Window:CreateTab("Misc", 124052038391729)
+local ESPTab = Window:CreateTab("Visuals", 124052038391729)
+
+--// Misc controls
+MiscTab:CreateToggle({
+	Name = "Aimbot Lock (RMB)",
+	CurrentValue = AimbotEnabled,
+	Callback = function(val)
+		AimbotEnabled = val
+	end
+})
+
+MiscTab:CreateToggle({
+	Name = "FOV Circle",
+	CurrentValue = FOVEnabled,
+	Callback = function(val)
+		FOVEnabled = val
+	end
+})
+
+MiscTab:CreateSlider({
+	Name = "FOV Radius",
+	Range = {50, 500},
+	Increment = 10,
+	Suffix = "px",
+	CurrentValue = FOVRadius,
+	Callback = function(val)
+		FOVRadius = val
+	end
+})
+
+-- Color Picker
+MiscTab:CreateColorPicker({
+	Name = "ESP / FOV Color",
+	Color = PickedColor,
+	Callback = function(Value)
+		PickedColor = Value
+		if not RGBEnabled then
+			BaseESPColor = PickedColor
+		end
+	end
+})
+
+-- RGB Toggle
+MiscTab:CreateToggle({
+	Name = "RGB ESP / FOV",
+	CurrentValue = RGBEnabled,
+	Callback = function(val)
+		RGBEnabled = val
+	end
+})
+
+-- Lock Part Dropdown
+MiscTab:CreateDropdown({
+	Name = "Lock Part",
+	Options = {"Head","Torso"},
+	CurrentOption = {"Head"},
+	MultipleOptions = false,
+	Callback = function(Options)
+		LockPart = Options[1]
+	end
+})
+
+--// ESP Settings
+ESPTab:CreateToggle({
+	Name = "MAIN - ESP",
+	CurrentValue = MasterESP,
+	Callback = function(val)
+		MasterESP = val
+	end
+})
 
 local function createToggle(name, key)
-	MiscTab:CreateToggle({
+	ESPTab:CreateToggle({
 		Name = name,
 		CurrentValue = ESPSettings[key],
-		Flag = "ESP_"..key,
 		Callback = function(val)
 			ESPSettings[key] = val
-			notify(name.." "..(val and "Enabled" or "Disabled"))
 		end
 	})
 end
@@ -246,5 +581,3 @@ createToggle("Health", "Health")
 createToggle("Names", "Names")
 createToggle("Distance", "Distance")
 createToggle("Tracers", "Tracers")
-
-notify("Universal Matrix - ESP Loaded")
