@@ -65,7 +65,7 @@ gui.Name, gui.IgnoreGuiInset, gui.ResetOnSpawn, gui.Parent = rnd(12), true, fals
 
 local frame = Instance.new("Frame")
 frame.Name, frame.Parent = rnd(10), gui
-frame.AnchorPoint, frame.Position = Vector2.new(0.5, 0.5), UDim2.new(0.5, 0, 0.5, -200)
+frame.AnchorPoint, frame.Position = Vector2.new(0.5, 0.5), UDim2.new(0.5, 0, 0.5, -300)
 frame.Size, frame.BackgroundColor3 = UDim2.fromOffset(135,135), Color3.fromRGB(45,45,45)
 frame.BackgroundTransparency, frame.BorderSizePixel, frame.ZIndex = 1, 0, 1
 
@@ -74,7 +74,7 @@ corner.CornerRadius, corner.Parent = UDim.new(0,100), frame
 
 local img = Instance.new("ImageLabel")
 img.Name, img.Parent = rnd(10), gui
-img.AnchorPoint, img.Position = Vector2.new(0.5, 0.5), UDim2.new(0.5, 0, 0.5, -200)
+img.AnchorPoint, img.Position = Vector2.new(0.5, 0.5), UDim2.new(0.5, 0, 0.5, -300)
 img.Size, img.BackgroundTransparency = UDim2.fromOffset(140,140), 1
 img.Image, img.ImageTransparency, img.ScaleType, img.ZIndex = "rbxassetid://124052038391729", 1, Enum.ScaleType.Fit, 2
 
